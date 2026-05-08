@@ -22,6 +22,7 @@ module.exports = {
     const query = data.get("query").value;
     message.reply(this.em("Searching...", message), false).then((msg) => {
       const messages = p.play(query, false, data.get("provider").value);
+      if (typeof messages === 'string') return msg.edit(this.em(messages, message));
       messages.on("message", (d) => {
         msg.edit(this.em(d, message));
       });

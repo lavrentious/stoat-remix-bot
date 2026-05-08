@@ -18,7 +18,7 @@ Platform.shim.eval = async (data, env) => {
 };
 
 class YTUtils extends EventEmitter {
-  constructor(spotify) {
+  constructor(spotify, ytdlpPath) {
     super();
 
     this.spotifyClient = null;
@@ -26,6 +26,7 @@ class YTUtils extends EventEmitter {
     this.ytApi = null;
     this.scld = new Soundcloud();
     this._innertube = null;
+    this.ytdlpPath = ytdlpPath || "yt-dlp";
 
     return this;
   }
@@ -135,16 +136,27 @@ class YTUtils extends EventEmitter {
   }
 
   async getSoundCloudTracks(query, limit = 10) {
-    var tracks = await this.scld.tracks.search({ q: query });
-    return tracks.collection.slice(0, limit).map(res => ({
-      url: res.permalink_url,
-      title: res.title,
-      thumbnail: res.artwork_url,
-      artists: [{
-        name: res.publisher_metadata?.artist || res.user.full_name,
-        url: res.user.permalink_url
-      }],
-      duration: { timestamp: this.prettifyTimestamp(res.duration), seconds: Math.floor(res.duration / 1000) },
+    const { spawn } = require("child_process");
+    const tracks = await new Promise((res, rej) => {
+      const proc = spawn(this.ytdlpPath, [
+        "--dump-json", "--no-playlist", "--flat-playlist",
+        `scsearch${limit}:${query}`
+      ]);
+      let out = "";
+      proc.stdout.on("data", d => out += d);
+      proc.stderr.on("data", d => {}); // suppress
+      proc.on("close", code => {
+        const lines = out.trim().split("\n").filter(Boolean);
+        const parsed = lines.flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } });
+        res(parsed);
+      });
+    });
+    return tracks.slice(0, limit).map(t => ({
+      url: t.url || t.webpage_url,
+      title: t.title,
+      thumbnail: t.thumbnail,
+      artists: [{ name: t.uploader || t.channel || "Unknown", url: t.uploader_url || "#" }],
+      duration: { timestamp: this.prettifyTimestamp((t.duration || 0) * 1000), seconds: Math.floor(t.duration || 0) },
       type: "soundcloud",
     }));
   }
@@ -155,24 +167,29 @@ class YTUtils extends EventEmitter {
     });
   }
   async getScdl(query) {
-    const data = this.parseScdlInput(query);
+    const parsed = this.parseScdlInput(query);
     this.emit("message", "Loading SoundCloud info...");
-    const info = await scdl.getInfo(data.url);
+    const { spawn } = require("child_process");
+    const info = await new Promise((res, rej) => {
+      const proc = spawn(this.ytdlpPath, ["--dump-json", "--no-playlist", parsed.url]);
+      let out = "";
+      proc.stdout.on("data", d => out += d);
+      proc.stderr.on("data", d => {}); // suppress
+      proc.on("close", code => {
+        if (!out) return rej(new Error("yt-dlp returned no info for " + parsed.url));
+        try { res(JSON.parse(out)); } catch (e) { rej(e); }
+      });
+    });
     this.emit("message", "Successfully added to queue.");
     return {
       type: "video",
       data: {
         type: "soundcloud",
-        url: data.url,
-        thumbnail: info.artwork_url,
-        duration: {
-          timestamp: this.prettifyTimestamp(info.full_duration),
-        },
+        url: parsed.url,
+        thumbnail: info.thumbnail,
+        duration: { timestamp: this.prettifyTimestamp((info.duration || 0) * 1000) },
         title: info.title,
-        author: {
-          name: info.user.username,
-          url: info.user.permalink_url
-        }
+        author: { name: info.uploader || info.channel || "Unknown", url: info.uploader_url || "#" }
       }
     };
   }
@@ -419,7 +436,7 @@ class YTUtils extends EventEmitter {
 
 const jobId = workerData.jobId;
 const data = workerData.data;
-const utils = new YTUtils(data.spotify);
+const utils = new YTUtils(data.spotify, data.ytdlpPath);
 
 utils.on("message", (content) => {
   if (jobId === "dev") { console.log("[Message] " + content); return; }

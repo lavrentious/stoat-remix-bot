@@ -515,7 +515,8 @@ class RevoltPlayer extends EventEmitter {
     };
     return new Promise(res => {
       let list = `Search results using **${providerNames[provider] || "YouTube"}**:\n\n`;
-      this.workerJob("searchResults", { query: query, provider: provider, resultCount: this.resultLimit }, () => { }).then((data) => {
+      const ytdlpPath = (typeof this.ytdlp === "string") ? this.ytdlp : (this.ytdlp?.binaryPath || "yt-dlp");
+      this.workerJob("searchResults", { query: query, provider: provider, resultCount: this.resultLimit, ytdlpPath }, () => { }).then((data) => {
         data.data.forEach((v, i) => {
           const url = v.url || v.permalink_url || "";
           const title = v.title || v.name || "Unknown";
@@ -603,7 +604,8 @@ class RevoltPlayer extends EventEmitter {
     if (prep) return prep;
 
     const events = new EventEmitter();
-    this.workerJob("generalQuery", { query: query, spotify: this.spotifyConfig, provider: provider }, (msg) => {
+    const ytdlpPath = (typeof this.ytdlp === "string") ? this.ytdlp : (this.ytdlp?.binaryPath || "yt-dlp");
+    this.workerJob("generalQuery", { query: query, spotify: this.spotifyConfig, provider: provider, ytdlpPath }, (msg) => {
       events.emit("message", msg);
     }).then((data) => {
       if (data.type == "list") {
