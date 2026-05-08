@@ -19,6 +19,7 @@ class RevoltPlayer extends EventEmitter {
     this.spotifyConfig = opts.spotify;
 
     this.ytdlp = opts.ytdlp;
+    this.cookiesPath = opts.cookiesPath || null;
     this.innertube = opts.innertube;
 
     this.gClient = opts.geniusClient || new (require("genius-lyrics")).Client();
@@ -401,13 +402,17 @@ class RevoltPlayer extends EventEmitter {
         console.log("[Player] Attempting yt-dlp for:", videoId);
         let ytdlpPath = (typeof this.ytdlp === "string") ? this.ytdlp : (this.ytdlp.binaryPath || "yt-dlp");
 
-        const proc = spawn(ytdlpPath, [
-          "--cookies", "/root/revolt/cookies.txt",
+        const ytdlpArgs = [];
+        if (this.cookiesPath && fs.existsSync(this.cookiesPath)) {
+          ytdlpArgs.push("--cookies", this.cookiesPath);
+        }
+        ytdlpArgs.push(
           "--js-runtimes", "node",
           "-f", "251/250/249/bestaudio",
           "--no-playlist", "-o", "-", "--quiet", "--no-cache-dir", "--force-ipv4",
           "https://www.youtube.com/watch?v=" + videoId
-        ]);
+        );
+        const proc = spawn(ytdlpPath, ytdlpArgs);
 
         const passThrough = new PassThrough();
         stream = passThrough;

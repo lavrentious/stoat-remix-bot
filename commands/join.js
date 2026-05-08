@@ -25,6 +25,7 @@ function joinChannel(message, cid, cb=()=>{}, ecb=()=>{}) {
     geniusClient: this.geniusClient,
     messageChannel: message.channel,
     ytdlp: this.ytdlp,
+    cookiesPath: this.config.ytdlpCookies || null,
     innertube: this.innertube
   });
   p.on("autoleave", async () => {

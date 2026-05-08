@@ -1,5 +1,5 @@
 const fs = require("fs");
-const mysql = require("mysql")
+const mysql = require("mysql2")
 const EventEmitter = require("events");
 
 class ServerSettings { // TODO: switch to better db system
