@@ -407,6 +407,7 @@ class RevoltPlayer extends EventEmitter {
           ytdlpArgs.push("--cookies", this.cookiesPath);
         }
         ytdlpArgs.push(
+          "--js-runtimes", "bun",
           "-f", "251/250/249/bestaudio",
           "--no-playlist", "-o", "-", "--quiet", "--no-cache-dir", "--force-ipv4",
           "https://www.youtube.com/watch?v=" + videoId
