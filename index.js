@@ -326,6 +326,7 @@ class Remix {
         visitorData: await this.generateVisitorData(),
         created: Date.now()
       }
+      fs.mkdirSync("./.ytcache", { recursive: true });
       fs.writeFileSync("./.ytcache/visitor_data.json", JSON.stringify(data));
       return data.visitorData;
     }
